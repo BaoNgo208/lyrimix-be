@@ -22,14 +22,12 @@ public class ImageServiceImpl implements ImageService {
             MultipartFile file = imageModel.getFile();
             String fileName = imageModel.getName();
 
-            // Kiểm tra dữ liệu đầu vào
             if (file == null || file.isEmpty() || fileName == null || fileName.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "File or name is empty"));
             }
 
-            // Xác định loại file dựa vào content type
             String contentType = file.getContentType();
-            String resourceType = "raw"; // Mặc định nếu không xác định được loại
+            String resourceType = "raw";
 
             if (contentType != null) {
                 if (contentType.startsWith("image/")) {
