@@ -6,6 +6,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.util.List;
 
 @Service
 public class FFmpegServiceImpl implements FFmpegService {
@@ -79,9 +81,67 @@ public class FFmpegServiceImpl implements FFmpegService {
             Process process = processBuilder.start();
             process.waitFor();
 
-            // Trả về đường dẫn tới file đầu ra
+                // Trả về đường dẫn tới file đầu ra
             return "Audio files merged successfully. Output file: " + outputFilePath;
 
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+            return "Error while merging audio.";
+        }
+    }
+
+    @Override
+    public String cutMedia(MultipartFile file, String startTime, String endTime,String fileExtension) {
+        try {
+            File tempFile = File.createTempFile("temp_media_", fileExtension);
+            file.transferTo(tempFile);
+
+            String outputFilePath = "output_" + tempFile.getName();
+
+            String ffmpegCommand = String.format(
+                    "ffmpeg -i %s -ss %s -to %s -c copy %s",
+                    tempFile.getAbsolutePath(), startTime, endTime, outputFilePath
+            );
+
+            ProcessBuilder processBuilder = new ProcessBuilder(ffmpegCommand.split(" "));
+            processBuilder.inheritIO();
+            Process process = processBuilder.start();
+            process.waitFor();
+
+            return "Media file cut successfully. Output file: " + outputFilePath;
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
+            return "Error while cutting media.";
+        }
+    }
+
+    @Override
+    public String mergeMedia(List<MultipartFile> files, String fileExtension) {
+        try{
+            if (files.isEmpty()) {
+                return "No files provided for merging.";
+            }
+            if (!fileExtension.equals(".mp3") && !fileExtension.equals(".mp4")) {
+                return "Unsupported file format. Only .mp3 and .mp4 are allowed.";
+            }
+            File listFile = File.createTempFile("fileList", ".txt");
+            StringBuilder listContent = new StringBuilder();
+            for (MultipartFile file : files) {
+                File tempFile = File.createTempFile("temp_media_", fileExtension);
+                file.transferTo(tempFile);
+                listContent.append("file '").append(tempFile.getAbsolutePath()).append("'\n");
+            }
+            Files.write(listFile.toPath(), listContent.toString().getBytes());
+            String outputFilePath = "output_merged" + fileExtension;
+            String ffmpegCommand = String.format(
+                    "ffmpeg -f concat -safe 0 -i %s -c copy %s",
+                    listFile.getAbsolutePath(), outputFilePath
+            );
+            ProcessBuilder processBuilder = new ProcessBuilder(ffmpegCommand.split(" "));
+            processBuilder.inheritIO();
+            Process process = processBuilder.start();
+            process.waitFor();
+            return "Media files merged successfully. Output file: " + outputFilePath;
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             return "Error while merging audio.";
